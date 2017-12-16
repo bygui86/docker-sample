@@ -1,0 +1,43 @@
+
+# This YAML file defines how Docker containers should behave in production.
+
+# Here we are focusing on a single container deployment.
+
+# Set the Compose file to version "3" and above, this essentially makes it "swarm mode" compatible, but also
+# to make available lots of new commands.
+#
+# To run version 3 (and above) files with non swarm configurations, we can use the command
+#    $ docker-compose up
+# or
+#    $ docker-compose run
+#
+# [deploy key]  https://docs.docker.com/compose/compose-file/#deploy
+version: "3"
+services:
+  # Service name
+  web:
+    # Image to be deployed in container(s) (if not already available local, Docker will download it)
+    image: rabbithole/test:friendlyhello
+    deploy:
+      # Run 5 instances of the pulled image as a service called "web", ...
+      replicas: 5
+      # ... limiting each one to use, at most, ...
+      resources:
+        limits:
+          # ... 10% of the CPU (across all cores)
+          cpus: "0.1"
+          # ... 50MB of RAM
+          memory: 50M
+      # Immediately restart containers if one fails
+      restart_policy:
+        condition: on-failure
+    # Map port 4000 on the host to web’s port 80
+    ports:
+      - "4000:80"
+    # Instruct web’s containers to share port 80 via a load-balanced network called webnet
+    # (Internally, the containers themselves will publish to web’s port 80 at an ephemeral port)
+    networks:
+      - webnet
+# Define the webnet network with the default settings (which is a load-balanced overlay network)
+networks:
+  webnet:

@@ -1,0 +1,62 @@
+
+### Docker COMMANDS ###
+
+### GENERAL
+
+docker ps
+
+
+### REPO
+
+docker search
+
+docker pull <IMAGE_ID>:<IMAGE_TAG>
+
+
+### SINGLE
+
+docker run [-d] -p <EXPOSED_PORT>:<CONTAINER_INTERNAL_PORT> [--name <CONTAINER_NAME>] <IMAGE_NAME>
+
+docker stop <CONTAINER_ID>
+
+docker inspect [<CONTAINER_ID>|<CONTAINER_NAME>]
+
+docker port [<CONTAINER_ID>|<CONTAINER_NAME>]
+
+
+### LOGS
+
+docker logs -f [<CONTAINER_ID>|<CONTAINER_NAME>]
+
+docker service logs -f [<SERVICE_ID>|<SERVICE_NAME>]
+
+
+### NETWORK
+
+docker network <COMMAND>
+
+
+### SERVICE-STACK
+
+docker node ls
+
+docker service update --help
+docker service update --publish-add 8080:80 dt1002egbbx1
+
+
+### SWARM
+
+docker-machine ssh <NODE_NAME> "docker ps"
+docker-machine ssh <MANAGER_NODE_NAME> "docker node inspect self --pretty"
+docker-machine ssh <MANAGER_NODE_NAME> "docker node inspect <WORKER_NODE_NAME> --pretty"
+docker-machine ssh <NODE_NAME> "docker inspect <CONTAINER_ID>"
+docker-machine ssh <MANAGER_NODE_NAME> "docker service inspect --format="{{json <DOCKER_JSON_INFO_SYNTAX>}}" [<SERVICE_ID>|<SERVICE_NAME>]"
+
+
+### ENVIRONMENT CLEANUP
+
+# Complete cleanup of Docker environment
+# Delete every Docker containers, must be run first because images are attached to containers
+	docker rm -f $(docker ps -a -q)
+# Delete every Docker image
+	docker rmi -f $(docker images -q)

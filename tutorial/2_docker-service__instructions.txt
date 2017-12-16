@@ -1,0 +1,55 @@
+
+### Docker SERVICE (SERVICE + STACK) ###
+
+
+### THEORY
+
+# Hierarchy of a distributed application:
+# 	. Stack (see "4_docker-stack__instructions.txt")
+# 	. Services
+# 	. Container (see "1_docker-image__instructions.txt")
+
+
+### SETUP A SERVICE
+# TODO (duplicate this file to cover the single container case using "docker-compose up/run" command)
+
+# Run the docker swarm (If we don’t run docker swarm init you’ll get an error that “this node is not a swarm manager.”)
+	$ docker swarm init
+
+# Now we can run our app (already in background), but we have also to give it a name:
+### PLEASE NOTE ###
+# Here we are already using the service stack to start our application, but this is a single service stack running on a single host.
+### - - - - - - ###
+# 	$ docker stack deploy -c docker-service.yml <APP_NAME>
+	$ docker stack deploy -c docker-service.yml servicefirstlook
+
+# Now our single service stack is running 5 container instances of our deployed image on one host. Let’s investigate...
+# Get the service ID for the one service in our application:
+	$ docker service ls
+
+# Docker swarms run tasks that spawn containers. Tasks have state and their own IDs:
+# 	$ docker service ps <SERVICE_ID>
+
+# Let’s inspect one task and limit the ouput to container ID:
+# 	$ docker inspect --format="{{.Status.ContainerStatus.ContainerID}}" <TASK_ID>
+
+# Vice versa, inspect the container ID, and extract the task ID:
+# 	$ docker inspect --format="{{index .Config.Labels \"com.docker.swarm.task.id\"}}" <CONTAINER_ID>
+
+# Now list all 5 containers:
+	$ docker container ls -q
+
+# You can run curl http://localhost several times in a row, or go to that URL in your browser and hit refresh a few times. 
+# Either way, you’ll see the container ID change, demonstrating the load-balancing; with each request, one of the 5 replicas is chosen, 
+# in a round-robin fashion, to respond.
+
+# You can scale the app by changing the replicas value in docker-service.yml, saving the change and re-running the deploy command (docker stack deploy)
+# Docker will do an in-place update, no need to tear the stack down first or kill any containers.
+
+# To take the app down using
+# 	$ docker stack rm <APP_NAME>
+# This removes the app, but our one-node swarm is still up and running (as shown by docker node ls).
+	$ docker stack rm servicefirstlook
+
+# Take down the swarm using
+	$ docker swarm leave -f

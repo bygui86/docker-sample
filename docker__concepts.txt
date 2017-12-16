@@ -1,0 +1,36 @@
+
+### Docker CONCEPTS ###
+
+### Application
+Application developed separately and indepentently from Docker.
+
+### Image
+Blueprint of our application which form the basis of containers. All custom images are based off of a base image.
+
+### Container
+Created from a Docker image and run the actual application. We can create a container using the "docker run"
+command. A list of running containers can be seen using the "docker ps" command.
+
+### Service
+?
+
+### Stack
+TO BE VERIFIED
+Group of services running in different containers, giving the application every external reference needed.
+
+### Swarm
+TO BE VERIFIED
+Group of VMs composed of a Manager and a series of workers. This group can run simple, single containers 
+or stack services.
+
+### Docker Daemon
+The background service running on the host that manages building, running and distributing Docker containers. 
+The daemon is the process that runs in the operating system to which clients talk to.
+
+### Docker Client
+The command line tool that allows the user to interact with the daemon. More generally, there can be other 
+forms of clients too - such as Kitematic which provide a GUI to the users.
+
+### Docker Hub
+A registry of Docker images. You can think of the registry as a directory of all available Docker images. 
+If required, one can host their own Docker registries and can use them for pulling images.

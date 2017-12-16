@@ -1,0 +1,89 @@
+
+### Docker ENGINE (IMAGE + CONTAINER) ###
+
+
+### THEORY
+
+# Hierarchy of a distributed application:
+# 	. Stack (see "docker-stack__instructions.txt")
+# 	. Services (see "2_docker-service__instructions.txt")
+# 	. Container
+
+
+### BUILDING AN APPLICATION
+
+# Build an image of an application
+# 	$ docker build -t <IMAGE_NAME> <FOLDER>
+	$ docker build -t friendlyhello service-image/
+
+# Check if the image is now included in Docker image registry
+	$ docker images
+
+
+
+### RUNNING AN IMAGE
+
+### PLEASE NOTE ### 
+# At this stage, it may take up to 30 seconds (or a minute) for the containers to respond to HTTP requests. 
+# This is not indicative of Docker or swarm performance, but rather an unmet Redis dependency.
+### - - - - - - ###
+
+# Run the image in foreground
+### PLEASE NOTE ###
+# You should see a notice that Python is serving your app at http://0.0.0.0:80. 
+# But that message is coming from inside the container, which doesn’t know you mapped port 80 of that container to 4000.
+### - - - - - - ###
+
+# Run the image in foreground (we get the long container ID for your app and then are kicked back to our terminal)
+# 	$ docker run -p <LOCAL_PORT>:<IMAGE_PORT> <IMAGE_NAME>
+	$ docker run -p 4000:80 friendlyhello
+
+# Run the image in background
+# 	$ docker run -d -p <LOCAL_PORT>:<IMAGE_PORT> <IMAGE_NAME>
+	$ docker run -d -p 4000:80 friendlyhello
+
+# Show all running containers
+	$ docker container ls
+
+# Stop container
+# 	$ docker stop <CONTAINER_ID>
+	$ docker stop friendlyhello
+
+
+
+### TESTING THE APPLICATION
+
+# Go to http://localhost:4000 in a web browser to see the display content served up on a web page,
+# including “Hello World” text, the container ID, and the Redis error message.
+
+# or use curl command in a shell to view the same content.
+	$ curl http://localhost:4000
+
+
+
+### SHARING THE IMAGE
+
+# Log in to your Docker repo
+# 	$ docker login <?>
+
+# The tag is optional, but recommended, since it is the mechanism that registries use to give Docker images a version. 
+# Give the repository and tag meaningful names for the context, such as "get-started:part1". This will put the image in the get-started repository and tag it as part1.
+# 	$ docker tag image <USERNAME>/<REPO_NAME>:<IMAGE_TAG_NAME>
+	$ docker tag friendlyhello rabbithole/test:friendlyhello
+
+# Upload your tagged image to the repository:
+	# 	$ docker push <USERNAME>/<REPO_NAME>:<IMAGE_TAG_NAME>
+	$ docker push rabbithole/test:friendlyhello
+
+# You can always push a new image to a repository
+# Make sure to change tagname with your desired image repository tag.
+# 	$ docker tag <LOCAL_IMAGE_NAME>:<LOCAL_IMAGE_TAG_NAME> <REPO_NAME>:<REPO_IMAGE_TAG_NAME>
+# 	$ docker push <REPO_NAME>:<REPO_IMAGE_TAG_NAME>
+
+# If the image isn’t available locally on the machine, Docker will pull it from the repository.
+# 	$ docker run -d -p <LOCAL_PORT>:<IMAGE_PORT> <USERNAME>/<REPO_NAME>:<IMAGE_TAG_NAME>
+	$ docker run -d -p 4000:80 rabbithole/test:friendlyhello
+
+# Remove an image
+# 	$ docker image rm <IMAGE_ID>
+	$ docker image rm friendlyhello

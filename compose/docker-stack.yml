@@ -1,0 +1,75 @@
+
+# This YAML file defines how Docker containers should behave in production.
+
+# Here we are focusing on a stack deployment since we are building up to a swarm example.
+
+# Set the Compose file to version "3" and above, this essentially makes it "swarm mode" compatible, but also
+# to make available lots of new commands.
+#
+# We can make use of the deploy key (only available on Compose file formats version 3.x and up) 
+# and its sub-options to load balance and optimize performance for each service.
+#
+# To run version 3 (and above) files with swarm configurations, we can run the file with the command
+#    $ docker stack deploy
+#
+# [deploy key]  https://docs.docker.com/compose/compose-file/#deploy
+version: "3"
+services:
+  # Service name
+  web:
+    # Image to be deployed in container(s) (if not already available local, Docker will download it)
+    image: rabbithole/test:friendlyhello-redis
+    deploy:
+      # Run 5 instances of the pulled image as a service called "web", ...
+      replicas: 5
+      # ... limiting each one to use, at most, ...
+      resources:
+        limits:
+          # ... 10% of the CPU (across all cores)
+          cpus: "0.1"
+          # ... 50MB of RAM
+          memory: 50M
+      # Immediately restart containers if one fails
+      restart_policy:
+        condition: on-failure
+    # Map port 4000 on the host to web’s port 80
+    ports:
+      - "4000:80"
+    # Instruct web’s containers to share port 80 via a load-balanced network called webnet
+    # (Internally, the containers themselves will publish to web’s port 80 at an ephemeral port)
+    networks:
+      - webnet
+  # Free visualizer service that lets us look at how our swarm is scheduling containers
+  visualizer:
+    image: dockersamples/visualizer:stable
+    deploy:
+      # Ensure that this service only ever runs on a swarm manager, never a worker
+      # That’s because this container displays Docker services running on a swarm in a diagram.
+      placement:
+        constraints: [node.role == manager]
+    # Give the service access to the host’s socket file for Docker
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    ports:
+      - "8080:8080"
+    networks:
+      - webnet
+  redis:
+    # Redis has an official image in the Docker library and has been granted the short image name of just redis, 
+    # so no username/repo notation here.
+    image: redis
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+    volumes:
+      - ./data:/data
+    # The Redis port, 6379, has been pre-configured by Redis to be exposed from the container to the host, and here 
+    # in our Compose file we expose it from the host to the world, so you can actually enter the IP for any of your 
+    # nodes into Redis Desktop Manager and manage this Redis instance, if you so choose.
+    ports:
+      - "6379:6379"
+    networks:
+      - webnet
+# Define the webnet network with the default settings (which is a load-balanced overlay network)
+networks:
+  webnet:

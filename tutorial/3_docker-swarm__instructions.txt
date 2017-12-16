@@ -1,0 +1,161 @@
+
+### Docker SWARM (CLUSTER) ###
+
+
+### THEORY
+
+# Now we deploy our application onto a cluster, running it on multiple machines. Multi-container, 
+# multi-machine applications are made possible by joining multiple machines into a “Dockerized” cluster called a swarm.
+
+# A swarm is a group of machines that are running Docker and joined into a cluster. After that has happened, we continue 
+# to run the Docker commands we are used to, but now they are executed on a cluster by a swarm manager. The machines in a 
+# swarm can be physical or virtual. After joining a swarm, they are referred to as nodes.
+
+# Swarm managers can use several strategies to run containers, such as “emptiest node” – which fills the least utilized 
+# machines with containers. Or “global”, which ensures that each machine gets exactly one instance of the specified container. 
+# We instruct the swarm manager to use these strategies in the Compose file, just like the one we have already been using.
+
+# Swarm managers are the only machines in a swarm that can execute our commands, or authorize other machines to join the swarm 
+# as workers. Workers are just there to provide capacity and do not have the authority to tell any other machine what it can 
+# and cannot do.
+
+# Up until now, we have been using Docker in a single-host mode on our local machine. But Docker also can be switched into 
+# swarm mode, and that’s what enables the use of swarms. Enabling swarm mode instantly makes the current machine a swarm manager. 
+# From then on, Docker will run the commands we execute on the swarm we are managing, rather than just on the current machine.
+
+
+### SETUP A SWARM
+
+# A swarm is made up of multiple nodes, which can be either physical or virtual machines. 
+# Run this command to enable swarm mode and make our current machine a swarm manager
+	$ docker swarm init
+
+# then run this command on other machines to have them join the swarm as workers
+	$ docker swarm join
+
+
+### PREREQUISITES
+
+# Install VirtualBox before going further
+
+
+### CREATE A CLUSTER
+
+# VMs on local machine
+# Create a couple of VMs using docker-machine and VirtualBox driver:
+# 	$ docker-machine create --driver virtualbox <VM_NAME> (Allowed hostname chars are: 0-9a-zA-Z . -)
+	[MANAGER]	$ docker-machine create --driver virtualbox swarm-vm1
+	[WORKER]	$ docker-machine create --driver virtualbox swarm-vm2
+
+# The first one will act as the manager, which executes docker commands and authenticates workers to join the swarm, 
+# and the second will be a worker.
+
+# Check results listing all VMs
+	$ docker-machine ls
+
+# We can send commands to our VMs using command
+# 	$ docker-machine ssh
+# Instruct myvm1 to become a swarm manager with $ docker swarm init
+# 	$ docker-machine ssh <MANAGER_NODE_NAME> "docker swarm init"
+	$ docker-machine ssh swarm-vm1 "docker swarm init"
+
+# [Got an error about needing to use --advertise-addr ?]
+# Copy the IP address for the manager machine by running "docker-machine ls", then run the docker swarm init command again, 
+# using that IP and specifying port 2377 (the port for swarm joins) with --advertise-addr:
+# 	$ docker-machine ssh <MANAGER_NODE_NAME> "docker swarm init --advertise-addr <MANAGER_NODE_IP_ADDRESS>:2377"
+	$ docker-machine ssh swarm-vm1 "docker swarm init --advertise-addr 192.168.99.100:2377"
+
+# The response to "docker swarm init" contains a pre-configured "docker swarm join" command for us to run on any nodes 
+# we want to add. Copy this command, and send it to <WORKER_NODE_NAME> via "docker-machine ssh" to have it join our new 
+# swarm as a worker.
+# 	$ docker-machine ssh <WORKER_NODE_NAME> "docker swarm join --token <SWARM_JOIN_TOKEN> <IP_ADDRESS>:<PORT>"
+	e.g. from last test
+	$ docker-machine ssh swarm-vm2 "docker swarm join --token SWMTKN-1-4cpkd4x184t4o536ho7ysdypsqoleu5d94dyu6yayvwgaxeo0k-9uhqsfua2t65lo8vp9zu3al0f 192.168.99.100:2377"
+
+# Contratulations! We have created out first swarm!
+# Check nodes information:
+# 	$ docker-machine ssh <MANAGER_NODE_NAME> "docker node ls"
+	$ docker-machine ssh swarm-vm1 "docker node ls"
+
+
+### ADDITIONAL USEFUL COMMANDS
+
+# To add a manager to a swarm, run this command and follow the instructions
+# 	$ docker swarm <SWARM_JOIN_TOKEN> manager
+
+# We can also run the ssh command with no command attached to open a terminal session on that VM
+# 	$ docker-machine ssh <NODE_NAME>
+# Type exit when ready to return to the host shell prompt. It may be easier to paste the join command in this way.
+
+# View all nodes in a swarm
+# 	$ docker-machine ssh <MANAGER_NODE_NAME> "docker node ls"
+	$ docker-machine ssh swarm-vm1 "docker node ls"
+
+
+### DEPLOY AN APP ON A CLUSTER
+
+### Remember that only swarm managers can execute Docker commands, workers are just for capacity. ###
+
+# Copy the file docker-service.yml (see "docker-service__instructions.txt") to the swarm manager's home directory (alias: ~) 
+# by using this command:
+# 	$ docker-machine scp <DOCKER_CONFIG_YAML> <MANAGER_NODE_NAME>:~
+	$ docker-machine scp service/docker-service.yml swarm-vm1:~
+
+# Now we can use the power of the manager node to deploy our app, by sending the deploy command to the manager node 
+# using "docker-machine ssh"
+# 	$ docker-machine ssh <MANAGER_NODE_NAME> "docker stack deploy -c <DOCKER_CONFIG_YAML> <APP_NAME>"
+	$ docker-machine ssh swarm-vm1 "docker stack deploy -c docker-service.yml servicefirstlook"
+
+# That’s it :) our app is deployed on the cluster.
+
+# Wrapping all normal commands available for a container in a call to "docker-machine ssh", they will work normally as expected
+# e.g. (with response)
+# 	$ docker-machine ssh <MANAGER_NODE_NAME> "docker service ls"
+# 	$ docker-machine ssh <MANAGER_NODE_NAME> "docker stack ps <APP_NAME>"
+	$ docker-machine ssh swarm-vm1 "docker service ls"
+#		ID                  NAME                   MODE                REPLICAS            IMAGE                       PORTS
+#		qd23bbqosp5q        servicefirstlook_web   replicated          5/5                 rabbithole/test:firstlook   *:4000->80/tcp
+	$ docker-machine ssh swarm-vm1 "docker stack ls"
+		NAME                   SERVICES
+		servicefirstlook       3
+	$ docker-machine ssh swarm-vm1 "docker stack ps servicefirstlook"
+#		ID                  NAME                     IMAGE                       NODE                DESIRED STATE       CURRENT STATE           ERROR               PORTS
+#		xwqm1lgphnaq        servicefirstlook_web.1   rabbithole/test:firstlook   swarm-vm1           Running             Running 7 minutes ago
+#		9oe7fmc8t31j        servicefirstlook_web.2   rabbithole/test:firstlook   swarm-vm2           Running             Running 7 minutes ago
+#		yz4vqoilb8mj        servicefirstlook_web.3   rabbithole/test:firstlook   swarm-vm2           Running             Running 7 minutes ago
+#		7lywcwmhdme3        servicefirstlook_web.4   rabbithole/test:firstlook   swarm-vm1           Running             Running 7 minutes ago
+#		yepfyg18eol7        servicefirstlook_web.5   rabbithole/test:firstlook   swarm-vm2           Running             Running 7 minutes ago
+
+
+### ACCESSING THE CLUSTER
+
+# We can access our app from the IP address of either swarm-vm1 or swarm-vm2. The network we created is shared between them and 
+# load-balancing. Run "docker-machine ls" to get our VMs' IP addresses and visit either of them on a browser, hitting refresh 
+# (or just curl them). We will see five possible container IDs all cycling by randomly, demonstrating the load-balancing.
+# 
+# The reason both IP addresses work is that nodes in a swarm participate in an ingress "routing mesh". This ensures that a service 
+# deployed at a certain port within your swarm always has that port reserved to itself, no matter what node is actually running 
+# the container.
+#
+# Access our application
+# 	$ curl <NODE_IP_ADDRESS>[:80]
+	$ curl 192.168.99.100
+	$ curl 192.168.99.101
+
+
+### CLEANUP APP AND SWARM
+
+# We can tear down the stack with "docker stack rm"
+# 	$ docker-machine ssh <MANAGER_NODE_NAME> "docker stack rm <APP_NAME>"
+	$ docker-machine ssh swarm-vm1 "docker stack rm servicefirstlook"
+
+# We can remove the swarm with 
+# 	[WORKER]	$ docker-machine ssh <WORKER_NODE_NAME> "docker swarm leave"
+# 	[MANAGER]	$ docker-machine ssh <MANAGER_NODE_NAME> "docker swarm leave --force"
+	$ docker-machine ssh swarm-vm2 "docker swarm leave"
+	$ docker-machine ssh swarm-vm1 "docker swarm leave --force"
+
+# We can remove also the VMs
+# 	$ docker-machine rm <VM_NAME>
+	$ docker-machine rm swarm-vm1
+	$ docker-machine rm swarm-vm2

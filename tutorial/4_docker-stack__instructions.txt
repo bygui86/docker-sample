@@ -1,0 +1,59 @@
+
+### Docker STACK (SERVICE + SWARM) ###
+
+
+### THEORY
+
+# Hierarchy of a distributed application:
+# 	. Stack
+# 	. Services (see "2_docker-service__instructions.txt")
+# 	. Container (see "1_docker-image__instructions.txt")
+
+# A stack is a group of interrelated services that share dependencies, and can be orchestrated and scaled together. 
+# A single stack is capable of defining and coordinating the functionality of an entire application (though very complex applications may 
+# want to use multiple stacks).
+
+# "docker stack deploy" is able to run a single service stack running on a single host, which is not usually what takes place in production. 
+# Following, we will make multiple services relate to each other, and run them on multiple machines.
+
+
+### PREREQUISITES
+
+# Build a new image including Redis
+	$ docker build -t friendlyhello-redis stack-image/
+	$ docker tag friendlyhello-redis rabbithole/test:friendlyhello-redis
+	$ docker push rabbithole/test:friendlyhello-redis
+
+
+### REDIS CONFIG (see "docker-stack.yml")
+
+# Most importantly, there are a couple of things in the redis specification that make data persist between deployments of this stack:
+# 	. redis always runs on the manager, so it’s always using the same filesystem.
+# 	. redis accesses an arbitrary directory in the host’s file system as /data inside the container, which is where Redis stores data.
+#
+# Together, this is creating a “source of truth” in our host’s physical filesystem for the Redis data. Without this, Redis would store 
+# its data in /data inside the container’s filesystem, which would get wiped out if that container were ever redeployed.
+# This source of truth has two components:
+# 	1) The placement constraint we put on the Redis service, ensuring that it always uses the same host.
+# 	2) The volume you created that lets the container access ./data (on the host) as /data (inside the Redis container). While containers 
+# 	   come and go, the files stored on ./data on the specified host will persist, enabling continuity.
+
+# Create a ./data directory on the manager:
+# 	$ docker-machine ssh <MANAGER_NODE_NAME> "mkdir ./data"
+	$ docker-machine ssh swarm-vm1 "mkdir ./data"
+
+# Copy over the new "docker-stack.yml" file with docker-machine scp:
+	$ docker-machine scp docker-stack.yml swarm-vm1:~
+
+# Run docker stack deploy one more time.
+	$ docker-machine ssh swarm-vm1 "docker stack deploy -c docker-stack.yml stackfirstlook"
+
+
+### CLEANUP APP AND SWARM
+
+# We can tear down the stack with "docker stack rm"
+	$ docker-machine ssh swarm-vm1 "docker stack rm stackfirstlook"
+
+# We can remove the swarm with 
+	$ docker-machine ssh swarm-vm2 "docker swarm leave"
+	$ docker-machine ssh swarm-vm1 "docker swarm leave --force"
